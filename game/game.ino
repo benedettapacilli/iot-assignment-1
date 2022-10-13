@@ -1,4 +1,3 @@
-#include "TimerOne.h"
 #include <avr/sleep.h>
 #include "EnableInterrupt.h"
 
@@ -35,13 +34,16 @@ void fadeRed()
 
 void initInitialState()
 {
-    sleeping = false;
     initPhase = true;
-    brightness = 0;
     initMessagePrinted = false;
-    initPhase = true;
+    brightness = 0;
+    fadeStep = 5;
+    sleeping = false;
     timerInitialized = false;
     startTime = millis();
+    beingPressed = false;
+    score = 0;
+    penalties = 0;
 }
 
 bool isStartButtonPressed()
@@ -54,6 +56,12 @@ bool isAButtonPressed()
     return digitalRead(B[0]) == HIGH || digitalRead(B[1]) == HIGH || digitalRead(B[2]) == HIGH || digitalRead(B[3]) == HIGH;
 }
 
+void givePoint()
+{
+    score++;
+    Serial.println("New point! Score: " + score);
+}
+
 void givePenalty()
 {
     penalties++;
@@ -63,7 +71,9 @@ void givePenalty()
     digitalWrite(Ls, LOW);
     if (penalties > 3)
     {
-        // END GAME
+        Serial.println("Game Over. Final Score: " + score);
+        delay(10000);
+        initInitialState();
     }
 }
 
@@ -80,12 +90,24 @@ void deepSleep()
     delay(1000);
 }
 
+bool patternChecker(int pattern[4], int userPattern[4])
+{
+    for (int i = 0; i < 4; i++)
+    {
+        if (pattern[i] != userPattern[i])
+            return false;
+    }
+
+    return true;
+}
+
 void game()
 {
     digitalWrite(Ls, LOW);
     Serial.println("Go!");
     delay(T[0]);
     int pattern[4];
+    int userPattern[] = {0, 0, 0, 0};
 
     Serial.println("Turning leds on");
     for (int i = 0; i < 4; i++)
@@ -93,7 +115,9 @@ void game()
         pattern[i] = random(0, 2);
         digitalWrite(L[i], pattern[i]);
     }
+
     int patternOnTime = millis();
+
     while (true)
     {
         if (millis() - patternOnTime > T[1])
@@ -102,6 +126,7 @@ void game()
         if (isAButtonPressed())
             givePenalty();
     }
+
     Serial.println("Turning leds off");
     for (int i = 0; i < 4; i++)
     {
@@ -109,6 +134,7 @@ void game()
     }
 
     int startGameTime = millis();
+
     while (true)
     {
         if (millis() - startGameTime < T[2])
@@ -117,19 +143,20 @@ void game()
             {
                 if (digitalRead(B[i]) == HIGH)
                 {
-                    if (pattern[i] == 0)
-                    {
-                        givePenalty();
-                    }
-                    else
-                    {
-                    }
+                    userPattern[i] = 1;
                 }
             }
         }
         else
         {
-            givePenalty();
+            if (patternChecker(pattern, userPattern))
+            {
+                givePoint();
+            }
+            else
+            {
+                givePenalty();
+            }
             break;
         }
     }
