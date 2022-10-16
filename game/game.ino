@@ -1,3 +1,11 @@
+
+/*
+ASSIGNMENT 1 - 2022/2023
+
+Salvatore Antonio Addimando 0000970539 - salvatore.addimando@studio.unibo.it
+Benedetta Pacilli 0000975296 - benedetta.pacilli@studio.unibo.it
+Valentina Pieri 0000974789 - valentina.pieri5@studio.unibo.it
+*/
 #include <avr/sleep.h>
 #include "EnableInterrupt.h"
 
