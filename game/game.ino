@@ -36,7 +36,6 @@ void fadeRed()
 
 void initInitialState()
 {
-    Serial.println("INIT STATE");
     initPhase = true;
     initMessagePrinted = false;
     brightness = 0;
@@ -141,7 +140,7 @@ void game()
         if (isAButtonPressed())
         {
             givePenalty();
-            if(penalties >= 3)
+            if (penalties >= 3)
                 break;
         }
     }
@@ -198,7 +197,6 @@ void setup()
     pinMode(POT, INPUT);
     randomSeed(analogRead(0));
     T[0] = random(3000, 7000);
-    Serial.println("SETUP FINISHED");
 }
 
 void loop()
