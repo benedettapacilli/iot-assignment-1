@@ -151,6 +151,9 @@ void game()
         digitalWrite(L[i], LOW);
     }
 
+    if (penalties >= 3)
+        return;
+
     long startGameTime = millis();
 
     while (true)
