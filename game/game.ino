@@ -3,17 +3,19 @@
 
 #define FADE_DELAY 30
 #define INITIAL_DELAY 10000000
-const int Ls = 3;
-const int L[] = {2, 4, 5, 6};
-const int B[] = {7, 8, 9, 10};
+const int Ls = 11;
+const int L[] = {10, 9, 8, 7};
+const int B[] = {5, 4, 3, 2};
+const int POT = A0;
 int T[] = {0, 6000, 6000};
+float F = 1;
 bool initPhase = true;
 bool initMessagePrinted = false;
 int brightness = 0;
 int fadeStep = 5;
 bool sleeping = false;
 bool timerInitialized = false;
-int startTime = millis();
+long startTime = millis();
 bool beingPressed = false;
 int score = 0;
 int penalties = 0;
@@ -34,6 +36,7 @@ void fadeRed()
 
 void initInitialState()
 {
+    Serial.println("INIT STATE");
     initPhase = true;
     initMessagePrinted = false;
     brightness = 0;
@@ -44,22 +47,25 @@ void initInitialState()
     beingPressed = false;
     score = 0;
     penalties = 0;
+    F = 1;
 }
 
 bool isStartButtonPressed()
 {
-    return digitalRead(B[0]) == HIGH;
+    return digitalRead(B[0]) == LOW;
 }
 
 bool isAButtonPressed()
 {
-    return digitalRead(B[0]) == HIGH || digitalRead(B[1]) == HIGH || digitalRead(B[2]) == HIGH || digitalRead(B[3]) == HIGH;
+    return digitalRead(B[0]) == LOW || digitalRead(B[1]) == LOW || digitalRead(B[2]) == LOW || digitalRead(B[3]) == LOW;
 }
 
 void givePoint()
 {
     score++;
-    Serial.println("New point! Score: " + score);
+    Serial.print("New point! Score: ");
+    Serial.println(score);
+    F += 0.05;
 }
 
 void givePenalty()
@@ -69,9 +75,10 @@ void givePenalty()
     digitalWrite(Ls, HIGH);
     delay(1000);
     digitalWrite(Ls, LOW);
-    if (penalties > 3)
+    if (penalties >= 3)
     {
-        Serial.println("Game Over. Final Score: " + score);
+        Serial.print("Game Over. Final Score: ");
+        Serial.println(score);
         delay(10000);
         initInitialState();
     }
@@ -88,9 +95,10 @@ void deepSleep()
     Serial.println("WAKING UP");
     sleep_disable();
     delay(1000);
+    initInitialState();
 }
 
-bool patternChecker(int pattern[4], int userPattern[4])
+bool patternChecker(int *pattern, int *userPattern)
 {
     for (int i = 0; i < 4; i++)
     {
@@ -110,21 +118,32 @@ void game()
     int userPattern[] = {0, 0, 0, 0};
 
     Serial.println("Turning leds on");
+    int emptyPattern[] = {0, 0, 0, 0};
+    do
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            pattern[i] = random(0, 2);
+        }
+    } while (patternChecker(pattern, emptyPattern));
+
     for (int i = 0; i < 4; i++)
     {
-        pattern[i] = random(0, 2);
         digitalWrite(L[i], pattern[i]);
     }
 
-    int patternOnTime = millis();
-
+    long patternOnTime = millis();
     while (true)
     {
-        if (millis() - patternOnTime > T[1])
+        if (millis() - patternOnTime > (T[1] / F))
             break;
 
         if (isAButtonPressed())
+        {
             givePenalty();
+            if(penalties >= 3)
+                break;
+        }
     }
 
     Serial.println("Turning leds off");
@@ -133,15 +152,15 @@ void game()
         digitalWrite(L[i], LOW);
     }
 
-    int startGameTime = millis();
+    long startGameTime = millis();
 
     while (true)
     {
-        if (millis() - startGameTime < T[2])
+        if (millis() - startGameTime < T[2] / F)
         {
             for (int i = 0; i < 4; i++)
             {
-                if (digitalRead(B[i]) == HIGH)
+                if (digitalRead(B[i]) == LOW)
                 {
                     userPattern[i] = 1;
                 }
@@ -162,6 +181,10 @@ void game()
     }
 }
 
+void voidFunction()
+{
+}
+
 void setup()
 {
     Serial.begin(9600);
@@ -170,10 +193,12 @@ void setup()
     {
         pinMode(L[i], OUTPUT);
         pinMode(B[i], INPUT);
-        enableInterrupt(B[i], initInitialState, RISING);
+        enableInterrupt(B[i], voidFunction, RISING);
     }
+    pinMode(POT, INPUT);
     randomSeed(analogRead(0));
     T[0] = random(3000, 7000);
+    Serial.println("SETUP FINISHED");
 }
 
 void loop()
@@ -182,6 +207,7 @@ void loop()
     {
         if (millis() - startTime > 10000)
         {
+            Serial.println("GOING TO SLEEP");
             deepSleep();
         }
         fadeRed();
@@ -190,17 +216,35 @@ void loop()
             Serial.println("Welcome to the Catch the Led Pattern Game. Press Key T1 to Start");
             initMessagePrinted = true;
         }
-    }
 
-    bool buttonPressed = isStartButtonPressed();
-    if (buttonPressed && !beingPressed)
-    {
-        beingPressed = true;
-        initPhase = false;
-        game();
+        int potentioMeterValue = analogRead(POT);
+        int oldF = F;
+        F = ceil(potentioMeterValue / 255.75);
+        if (F == 0)
+        {
+            F = 1;
+        }
+
+        if (F != oldF)
+        {
+            Serial.print("Level: ");
+            Serial.println(F);
+        }
+
+        bool buttonPressed = isStartButtonPressed();
+
+        if (buttonPressed && !beingPressed)
+        {
+            beingPressed = true;
+            initPhase = false;
+        }
+        else if (!buttonPressed)
+        {
+            beingPressed = false;
+        }
     }
-    else if (!buttonPressed)
+    else
     {
-        beingPressed = false;
+        game();
     }
 }
